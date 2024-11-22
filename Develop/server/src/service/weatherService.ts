@@ -162,54 +162,37 @@ class WeatherService {
   // }
   private buildForecastArray(currentWeather: Weather, weatherData: any[]) {
     const forecastArray: Weather[] = [];
-    let highestTemp = null; // To store the highest temperature for the current day
-    let currentDay = 0; // To keep track of the current day
+    const uniqueDays: Set<string> = new Set();
 
-    for (const day of weatherData) {
-      // If we are on a new day
-      if (currentDay !== day) {
-        // If we have a previous day's highest temperature, push it to the array
-        if (currentDay) {
-          forecastArray.push(
-            new Weather(
-              currentWeather.cityName,
-              currentWeather.date, // Previous day's date
-              day.weather[0].icon, // Icon from the last entry of the previous day
-              day.weather[0].description, // Description from the last entry of the previous day
-              highestTemp, // Highest temperature recorded for the previous day
-              day.wind.speed, // Last wind speed (optional)
-              day.main.humidity // Last humidity (optional)
-            )
-          );
-        }
+    for (const entry of weatherData) {
+      // Extract the date portion (YYYY-MM-DD) from the timestamp
+      const entryDate = new Date(entry.dt * 1000).toISOString().split("T")[0];
 
-        // Update currentDay and reset highestTemp for the new day
-        currentDay = day;
-        highestTemp = day.main.temp; // Start with the current day's temperature
-      } else {
-        // Update highestTemp if the current temperature is higher
-        if (day.main.temp > highestTemp) {
-          highestTemp = day.main.temp; // Update to the higher temperature
-        }
+      // Check if we've already added this day to the forecast
+      if (!uniqueDays.has(entryDate)) {
+        uniqueDays.add(entryDate); // Mark this day as processed
+
+        // Push the weather data for this day
+        forecastArray.push(
+          new Weather(
+            currentWeather.cityName,
+            entry.dt,
+            entry.weather[0].icon,
+            entry.weather[0].description,
+            entry.main.temp,
+            entry.wind.speed,
+            entry.main.humidity
+          )
+        );
+      }
+
+      // Stop once we have 5 days in the forecast
+      if (forecastArray.length === 5) {
+        break;
       }
     }
 
-    // After the loop, push the last day's data if it exists
-    if (currentDay) {
-      forecastArray.push(
-        new Weather(
-          currentWeather.cityName,
-          currentDay,
-          weatherData[weatherData.length - 1].weather[0].icon, // Use the last icon
-          weatherData[weatherData.length - 1].weather[0].description, // Use the last description
-          highestTemp,
-          weatherData[weatherData.length - 1].wind.speed, // Use the last wind speed
-          weatherData[weatherData.length - 1].main.humidity // Use the last humidity
-        )
-      );
-    }
-
-    return forecastArray.slice(0, 5); // Return only the first 5 days
+    return forecastArray;
   }
 
   // TODO: Complete getWeatherForCity method
